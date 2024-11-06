@@ -1,5 +1,3 @@
-#include <LinkedList.h>
-
 #define number_of_mux 2
 // #define numOfMuxPins number_of_mux * 8
 #define numOfMuxPins 9
@@ -18,13 +16,14 @@ int freeMemory() {
   return free_memory;
 }
 
+
 int analogPin = 0;
 int analogPin2 = 0;
 int raw = 0;
 int raw2 = 0;
 int Vin = 5;
 float Vout = 0;
-float R1 = 225;
+float R1 = 10000;
 float RMux = 125;
 float R2 = 0;
 float buffer = 0;
@@ -38,9 +37,10 @@ const int channelA5v = 8;
 const int channelB5v = 10;
 const int channelC5v = 12;
 
-const int NUM_LISTS = 9;      // Number of linked lists
-int listArray[NUM_LISTS * 8][10];
-int pressed[NUM_LISTS * 8];
+const int num_serial = 10;     
+const int num_5v = 8;
+int listArray[num_serial * 8][10];
+//int pressed[num_serial * 8];
 int calibrate = 0;
 
 void setup(){
@@ -59,7 +59,7 @@ void loop(){
   
   //printPressed();
 
-  memset(pressed, 0, sizeof(pressed));
+  //memset(pressed, 0, sizeof(pressed));
   // int free_mem = freeMemory();
   // Serial.print("Free Memory: ");
   // Serial.println(free_mem);
@@ -90,24 +90,24 @@ void selectChannel5v(int chnl){/* function selectChannel */
   
 }
 
-void printPressed() {
-  Serial.println("These are pressed: ");
+// void printPressed() {
+//   Serial.println("These are pressed: ");
 
-  for (int i = 0; i < (9*8); i++) {
-    if (pressed[i] == 1) {
-      Serial.print(i);
-      Serial.print(" ");
-    }
-  }
-  Serial.println(" ");
-}
+//   for (int i = 0; i < (9*8); i++) {
+//     if (pressed[i] == 1) {
+//       Serial.print(i);
+//       Serial.print(" ");
+//     }
+//   }
+//   Serial.println(" ");
+// }
 
 void MuxMaxxing(){/* function MuxLED */ 
 //// blink leds 
-for(int j = 0; j < 8; j++){
-  for(int i = 0; i <  numOfMuxPins; i++){
-      selectChannel5v(j);
-      selectChannel(i);
+for(int j = 0; j < num_5v; j++){
+  for(int i = 0; i <  num_serial; i++){
+      selectChannel5v(j % 8);
+      selectChannel(i % 8);
       if (i < 8) {
         raw = analogRead(analogPin);
       } else {
@@ -115,19 +115,19 @@ for(int j = 0; j < 8; j++){
       }
       // raw = analogRead(analogPin);
       // raw2 = analogRead(analogPin2);
-      int current_sensor = (j * numOfMuxPins) + i;
+      int current_sensor = (j * num_serial) + i;
 
       
       if(raw){
-        buffer = raw * Vin;
-        Vout = (buffer)/1024.0;
-        buffer = (2/Vout) - 1;
-        R2= (R1 + RMux) * buffer;
+        
+        Vout = raw * (Vin / 1023.0);
+        R2= ((R1 + RMux) * (Vin - Vout))/Vout;
         // Serial.print(current_sensor);
         // Serial.print("Vout: ");
         // Serial.println(Vout);
         // Serial.print("R2: ");
-       if (current_sensor == 1) {
+       if (current_sensor == 79) {
+        // Serial.println(Vout);
         Serial.println(R2);
       }
         // Serial.print(R2);
@@ -141,7 +141,7 @@ for(int j = 0; j < 8; j++){
           
         } else if (bigDrop(current_sensor, abs(R2))) {
           
-          pressed[current_sensor] = 1;
+          // pressed[current_sensor] = 1;
         } else {
           
           // listArray[i].remove(0);
@@ -165,9 +165,9 @@ bool bigDrop(int index, int current) {
   // Serial.println(abs(avg) * 0.01);
   if (abs(current) <= abs(avg) * 0.1) {
     //  Serial.println(avg * 0.01);
-    if (index == 71) {
-      Serial.print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    }
+    // if (index == 71) {
+    //   Serial.print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    // }
     //   Serial.println(index);
     //   Serial.println(current);
     return true;
