@@ -134,13 +134,13 @@ for(int j = 0; j < num_5v; j++){
       
       if(raw){
         
-        Vout = (raw) * (Vin / 1023.0);
+        Vout = log(raw) * (Vin / 1023.0);
         R2= ((R1 + RMux) * (Vin - Vout))/Vout;
         // Serial.print(current_sensor);
         // Serial.print("Vout: ");
         // Serial.println(Vout);
         // Serial.print("R2: ");
-      //   if (current_sensor == 239) {
+      //   if (current_sensor == 10) {
       //    // Serial.println(Vout);
       //    Serial.println(R2);
       //  }
@@ -180,7 +180,7 @@ for(int j = 0; j < num_5v; j++){
 bool bigDrop(int index, int current) {
   
   // Serial.println(abs(avg) * 0.01);
-  if (abs(current) <= abs(listArray[index]) * 0.70) {
+  if (abs(current) <= abs(listArray[index]) * 0.60) {
     Serial.print(current);
     Serial.print(",");
     Serial.print(index);

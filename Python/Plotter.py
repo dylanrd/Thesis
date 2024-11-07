@@ -1,17 +1,16 @@
 import serial  # import Serial Library
 import numpy as np  # Import numpy
 import matplotlib
+from matplotlib import pyplot as plt
 
 matplotlib.use('TkAgg')
-
-from drawnow import *
 
 fiveV_lines = 15
 read_lines = 16
 
 tempF = []
 pressure = []
-arduinoData = serial.Serial('com3', 115200)  # Creating our serial object named arduinoData
+arduinoData = serial.Serial('com9', 115200)  # Creating our serial object named arduinoData
 
 fig, ax = plt.subplots()
 heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma', aspect='auto')
