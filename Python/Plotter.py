@@ -7,11 +7,11 @@ matplotlib.use('TkAgg')
 from drawnow import *
 
 fiveV_lines = 8
-read_lines = 9
+read_lines = 16
 
 tempF = []
 pressure = []
-arduinoData = serial.Serial('com3', 9600)  # Creating our serial object named arduinoData
+arduinoData = serial.Serial('com3', 115200)  # Creating our serial object named arduinoData
 
 fig, ax = plt.subplots()
 heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma', aspect='auto')

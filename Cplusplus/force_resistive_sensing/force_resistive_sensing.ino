@@ -18,12 +18,12 @@ int freeMemory() {
 
 
 int analogPin = 0;
-int analogPin2 = 0;
+int analogPin2 = 1;
 int raw = 0;
 int raw2 = 0;
 int Vin = 5;
 float Vout = 0;
-float R1 = 10000;
+float R1 = 1000;
 float RMux = 125;
 float R2 = 0;
 float buffer = 0;
@@ -37,14 +37,14 @@ const int channelA5v = 8;
 const int channelB5v = 10;
 const int channelC5v = 12;
 
-const int num_serial = 10;     
+const int num_serial = 16;     
 const int num_5v = 8;
 int listArray[num_serial * 8][10];
 //int pressed[num_serial * 8];
 int calibrate = 0;
 
 void setup(){
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(channelA,OUTPUT);
   pinMode(channelB,OUTPUT);
   pinMode(channelC,OUTPUT);
@@ -57,9 +57,9 @@ void loop(){
 
   MuxMaxxing();
   
-  //printPressed();
+  // printPressed();
 
-  //memset(pressed, 0, sizeof(pressed));
+  //  memset(pressed, 0, sizeof(pressed));
   // int free_mem = freeMemory();
   // Serial.print("Free Memory: ");
   // Serial.println(free_mem);
@@ -93,7 +93,7 @@ void selectChannel5v(int chnl){/* function selectChannel */
 // void printPressed() {
 //   Serial.println("These are pressed: ");
 
-//   for (int i = 0; i < (9*8); i++) {
+//   for (int i = 0; i < (num_serial * num_5v); i++) {
 //     if (pressed[i] == 1) {
 //       Serial.print(i);
 //       Serial.print(" ");
@@ -126,14 +126,14 @@ for(int j = 0; j < num_5v; j++){
         // Serial.print("Vout: ");
         // Serial.println(Vout);
         // Serial.print("R2: ");
-       if (current_sensor == 79) {
-        // Serial.println(Vout);
-        Serial.println(R2);
-      }
-        // Serial.print(R2);
-        // Serial.print(",");
-        // Serial.print(current_sensor);
-        // Serial.println();
+      //   if (current_sensor == 112) {
+      //    // Serial.println(Vout);
+      //    Serial.println(R2);
+      //  }
+        Serial.print(R2);
+        Serial.print(",");
+        Serial.print(current_sensor);
+        Serial.println();
         
         //delay(5);
         if (calibrate < 10) {
@@ -141,7 +141,7 @@ for(int j = 0; j < num_5v; j++){
           
         } else if (bigDrop(current_sensor, abs(R2))) {
           
-          // pressed[current_sensor] = 1;
+          //pressed[current_sensor] = 1;
         } else {
           
           // listArray[i].remove(0);
@@ -153,6 +153,7 @@ for(int j = 0; j < num_5v; j++){
       }
 }
 
+
 }
 
 bool bigDrop(int index, int current) {
@@ -163,7 +164,7 @@ bool bigDrop(int index, int current) {
   
   avg /= sizeof(listArray[index]);
   // Serial.println(abs(avg) * 0.01);
-  if (abs(current) <= abs(avg) * 0.1) {
+  if (abs(current) <= abs(avg) * 0.20) {
     //  Serial.println(avg * 0.01);
     // if (index == 71) {
     //   Serial.print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
