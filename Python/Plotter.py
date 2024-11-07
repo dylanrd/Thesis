@@ -6,7 +6,7 @@ matplotlib.use('TkAgg')
 
 from drawnow import *
 
-fiveV_lines = 8
+fiveV_lines = 15
 read_lines = 16
 
 tempF = []
@@ -20,8 +20,8 @@ cnt = 0
 sensorTracker = 0
 initialiser = 0
 
-max = np.zeros(read_lines * fiveV_lines)
-current = np.zeros(read_lines * fiveV_lines)
+max = np.zeros(read_lines * fiveV_lines, dtype=float)
+current = np.zeros(read_lines * fiveV_lines, dtype=float)
 
 # plt.show(block=False)
 while True:  # While loop that loops forever
@@ -45,7 +45,12 @@ while True:  # While loop that loops forever
 
         if index == 0:
             norm = (current/max)
-            normalisationArray = norm.reshape(fiveV_lines, read_lines)
+
+            deviation = (max - current)
+            max_deviation = np.max(deviation)
+            normalized_values = deviation / max
+
+            normalisationArray = normalized_values.reshape(fiveV_lines, read_lines)
 
             heatmap.set_data(normalisationArray)
 

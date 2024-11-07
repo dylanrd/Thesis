@@ -19,7 +19,7 @@ int raw = 0;
 int raw2 = 0;
 int Vin = 5;
 float Vout = 0;
-float R1 = 1000;
+float R1 = 10000;
 float RMux = 125;
 float R2 = 0;
 float buffer = 0;
@@ -37,7 +37,7 @@ const int channelC5v2 = 7;
 
 const int num_serial = 16;     
 const int num_5v = 15;
-int listArray[num_serial * num_5v][10];
+int listArray[num_serial * num_5v];
 //int pressed[num_serial * 8];
 int calibrate = 0;
 
@@ -118,7 +118,7 @@ for(int j = 0; j < num_5v; j++){
       selectChannel5v(j);
     } else {
       selectChannel5v(7);
-      selectChannel5v((j + 1) % 8);
+      selectChannel5v2((j + 1) % 8);
     }
     
   for(int i = 0; i <  num_serial; i++){
@@ -131,62 +131,66 @@ for(int j = 0; j < num_5v; j++){
       }
 
       int current_sensor = (j * num_serial) + i;
-     
+      
       if(raw){
         
-        Vout = raw * (Vin / 1023.0);
+        Vout = (raw) * (Vin / 1023.0);
         R2= ((R1 + RMux) * (Vin - Vout))/Vout;
         // Serial.print(current_sensor);
         // Serial.print("Vout: ");
         // Serial.println(Vout);
         // Serial.print("R2: ");
-        if (current_sensor == 224) {
-         // Serial.println(Vout);
-         Serial.println(R2);
-       }
-        // Serial.print(R2);
-        // Serial.print(",");
-        // Serial.print(current_sensor);
-        // Serial.println();
+      //   if (current_sensor == 239) {
+      //    // Serial.println(Vout);
+      //    Serial.println(R2);
+      //  }
+        Serial.print(R2);
+        Serial.print(",");
+        Serial.print(current_sensor);
+        Serial.println();
         
         //delay(5);
         if (calibrate < 10) {
-          listArray[current_sensor][calibrate] = (int)abs(R2);
+          listArray[current_sensor] += (int)abs(R2);
           
-        } else if (bigDrop(current_sensor, abs(R2))) {
           
-          //pressed[current_sensor] = 1;
-        } else {
-          
-          // listArray[i].remove(0);
-          // listArray[i].add((int)abs(R2));
-        
+        } if (calibrate == 10) {
+          listArray[current_sensor] /= 10;
         }
 
-        }
+        //bigDrop(current_sensor, abs(R2));
+        // else if (bigDrop(current_sensor, abs(R2))) {
+          
+        //   //pressed[current_sensor] = 1;
+        // } else {
+          
+        //   // listArray[i].remove(0);
+        //   // listArray[i].add((int)abs(R2));
+        
+        // }
+
+        // }
       }
 }
 
 
 }
+}
 
 bool bigDrop(int index, int current) {
-  float avg = 0;
-  for (int i = 0; i < 10; i++) {
-    avg += abs(listArray[index][i]);
-  }
   
-  avg /= sizeof(listArray[index]);
   // Serial.println(abs(avg) * 0.01);
-  if (abs(current) <= abs(avg) * 0.20) {
-    //  Serial.println(avg * 0.01);
-    // if (index == 71) {
-    //   Serial.print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    // }
-    //   Serial.println(index);
-    //   Serial.println(current);
+  if (abs(current) <= abs(listArray[index]) * 0.70) {
+    Serial.print(current);
+    Serial.print(",");
+    Serial.print(index);
+    Serial.println();
     return true;
   }
 
+  Serial.print(abs(listArray[index]));
+  Serial.print(",");
+  Serial.print(index);
+  Serial.println();
   return false;
 }
