@@ -1,7 +1,3 @@
-#define number_of_mux 2
-// #define numOfMuxPins number_of_mux * 8
-#define numOfMuxPins 9
-
 extern unsigned int __bss_end;
 extern unsigned int __heap_start;
 extern void *__brkval;
@@ -31,15 +27,17 @@ float buffer = 0;
 const int channelA = 2;
 const int channelB = 4;
 const int channelC = 6;
-const int comPin  = 3;
 
 const int channelA5v = 8;
 const int channelB5v = 10;
 const int channelC5v = 12;
+const int channelA5v2 = 3;
+const int channelB5v2 = 5;
+const int channelC5v2 = 7;
 
 const int num_serial = 16;     
-const int num_5v = 8;
-int listArray[num_serial * 8][10];
+const int num_5v = 15;
+int listArray[num_serial * num_5v][10];
 //int pressed[num_serial * 8];
 int calibrate = 0;
 
@@ -90,6 +88,17 @@ void selectChannel5v(int chnl){/* function selectChannel */
   
 }
 
+void selectChannel5v2(int chnl){/* function selectChannel */ 
+//// Select channel of the multiplexer 
+  int A = bitRead(chnl,0); //Take first bit from binary value of i channel.
+  int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
+  int C = bitRead(chnl,2); //Take third bit from value of i channel.
+  digitalWrite(channelA5v2, A);
+  digitalWrite(channelB5v2, B);
+  digitalWrite(channelC5v2, C);
+  
+}
+
 // void printPressed() {
 //   Serial.println("These are pressed: ");
 
@@ -105,19 +114,24 @@ void selectChannel5v(int chnl){/* function selectChannel */
 void MuxMaxxing(){/* function MuxLED */ 
 //// blink leds 
 for(int j = 0; j < num_5v; j++){
+  if (j < 7) {
+      selectChannel5v(j);
+    } else {
+      selectChannel5v(7);
+      selectChannel5v((j + 1) % 8);
+    }
+    
   for(int i = 0; i <  num_serial; i++){
-      selectChannel5v(j % 8);
+      
       selectChannel(i % 8);
       if (i < 8) {
         raw = analogRead(analogPin);
       } else {
         raw = analogRead(analogPin2);
       }
-      // raw = analogRead(analogPin);
-      // raw2 = analogRead(analogPin2);
-      int current_sensor = (j * num_serial) + i;
 
-      
+      int current_sensor = (j * num_serial) + i;
+     
       if(raw){
         
         Vout = raw * (Vin / 1023.0);
@@ -126,14 +140,14 @@ for(int j = 0; j < num_5v; j++){
         // Serial.print("Vout: ");
         // Serial.println(Vout);
         // Serial.print("R2: ");
-      //   if (current_sensor == 112) {
-      //    // Serial.println(Vout);
-      //    Serial.println(R2);
-      //  }
-        Serial.print(R2);
-        Serial.print(",");
-        Serial.print(current_sensor);
-        Serial.println();
+        if (current_sensor == 224) {
+         // Serial.println(Vout);
+         Serial.println(R2);
+       }
+        // Serial.print(R2);
+        // Serial.print(",");
+        // Serial.print(current_sensor);
+        // Serial.println();
         
         //delay(5);
         if (calibrate < 10) {
