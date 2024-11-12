@@ -13,7 +13,7 @@ pressure = []
 arduinoData = serial.Serial('com9', 115200)  # Creating our serial object named arduinoData
 
 fig, ax = plt.subplots()
-heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma', aspect='auto')
+heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma')
 plt.colorbar(heatmap)
 cnt = 0
 sensorTracker = 0
@@ -26,7 +26,7 @@ current = np.zeros(read_lines * fiveV_lines, dtype=float)
 while True:  # While loop that loops forever
 
     arduinoString = arduinoData.readline()  # read the line of text from the serial port
-
+    #print(arduinoString)
     dataArray = arduinoString.decode('utf-8').split(',')  # Split it into an array called dataArray
     temp = float(dataArray[0])
     index = int(dataArray[1])
@@ -43,13 +43,17 @@ while True:  # While loop that loops forever
         current[index] = temp
 
         if index == 0:
-            norm = (current/max)
+            norm = (current/max) * 0.75
+            minimum = current.min()
+            maximum = current.max()
+            normalisation = (current - minimum) / (maximum - minimum)
 
             deviation = (max - current)
+
             max_deviation = np.max(deviation)
             normalized_values = deviation / max
-
-            normalisationArray = normalized_values.reshape(fiveV_lines, read_lines)
+            # normalized_values = np.clip(normalized_values, 0, 1)
+            normalisationArray = norm.reshape(fiveV_lines, read_lines)
 
             heatmap.set_data(normalisationArray)
 
