@@ -41,6 +41,12 @@ float listArray[num_serial * num_5v];
 //int pressed[num_serial * 8];
 int calibrate = 0;
 
+
+unsigned long startTime;
+unsigned long endTime;
+unsigned long duration;
+
+
 void setup(){
   Serial.begin(115200);
   pinMode(channelA,OUTPUT);
@@ -52,7 +58,7 @@ void setup(){
 }
 
 void loop(){
-
+  startTime = millis();
   MuxMaxxing();
   
   // printPressed();
@@ -64,6 +70,13 @@ void loop(){
 
   calibrate++;
   //Serial.println(listArray[0].get(0));
+
+  // endTime = millis();  // Record the end time
+  // duration = endTime - startTime;  // Calculate the duration
+  
+  // Serial.print("Loop time: ");
+  // Serial.print(duration);
+  // Serial.println(" microseconds");
 }
 
 void selectChannel(int chnl){/* function selectChannel */ 
@@ -120,7 +133,8 @@ for(int j = 0; j < num_5v; j++){
       selectChannel5v(7);
       selectChannel5v2((j + 1) % 8);
     }
-    
+  // Serial.println(j);
+  // delay(500);
   for(int i = 0; i <  num_serial; i++){
       
       selectChannel(i % 8);
@@ -169,6 +183,7 @@ for(int j = 0; j < num_5v; j++){
           Serial.print(",");
           Serial.print(current_sensor);
           Serial.println();
+          //delay(100);
           //bigDrop(current_sensor, abs(R2));
         }
 
