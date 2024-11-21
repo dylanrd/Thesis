@@ -45,10 +45,10 @@ while True:  # While loop that loops forever
         current[index] = temp
 
         if index == 0:
-            norm = (current/max) * 0.75
-            # minimum = current.min()
-            # maximum = current.max()
-            # normalisation = (current - minimum) / (maximum - minimum)
+            norm = (current/max)
+            minimum = current.min()
+            maximum = current.max()
+            normalisation = (current - minimum) / (maximum - minimum)
             #
             # deviation = (max - current)
             #
@@ -58,7 +58,7 @@ while True:  # While loop that loops forever
             R = 1/G
             # normalized_values = np.clip(normalized_values, 0, 1)
             normalisationArray = norm.reshape(fiveV_lines, read_lines)
-            print(G)
+            #print(G)
             heatmap.set_data(normalisationArray)
             # end_time = time.perf_counter()  # End time
             # duration = end_time - tim
