@@ -3,7 +3,7 @@ import numpy.random
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import serial
-
+from crosstalk import fixed_point_recover_conductances, compute_equivalent_conductance
 # # To generate some test data
 # x = np.random.randn(500)
 # y = np.random.randn(500)
@@ -51,6 +51,8 @@ heights = np.random.randint(1, 10, size=len(x))  # Heights of the bars
 # Width and depth of bars
 dx = dy = 1
 
+
+
 # Create the 3D bar chart
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111, projection='3d')
@@ -61,6 +63,21 @@ ax.bar3d(x, y, z, dx, dy, 1/max, color=colors, shade=True)
 ax.set_xlabel('X Axis')
 ax.set_ylabel('Y Axis')
 ax.set_zlabel('Z Axis')
+
+
+temp = compute_equivalent_conductance(1/max)
+res,error = fixed_point_recover_conductances(temp)
+fig2 = plt.figure(figsize=(10, 10))
+ax2 = fig2.add_subplot(111, projection='3d')
+colors = cm.viridis(res)
+ax2.bar3d(x, y, z, dx, dy, res, color=colors, shade=True)
+
+# Add labels
+ax2.set_xlabel('X Axis')
+ax2.set_ylabel('Y Axis')
+ax2.set_zlabel('Z Axis')
+
+
 
 plt.title("3D Bar Chart")
 plt.show()
