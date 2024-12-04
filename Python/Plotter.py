@@ -15,6 +15,10 @@ arduinoData = serial.Serial('com9', 115200)  # Creating our serial object named 
 fig, ax = plt.subplots()
 heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma')
 plt.colorbar(heatmap)
+
+# fig2, ax2 = plt.subplots()
+# heatmap2 = ax2.matshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma')
+# plt.colorbar(heatmap2)
 cnt = 0
 sensorTracker = 0
 initialiser = 0
@@ -60,9 +64,10 @@ while True:  # While loop that loops forever
             normalisationArray = norm.reshape(fiveV_lines, read_lines)
             #print(G)
             heatmap.set_data(normalisationArray)
+            # heatmap2 = ax2.matshow(current.reshape(fiveV_lines, read_lines), vmin=0, vmax=100)
             # end_time = time.perf_counter()  # End time
             # duration = end_time - tim
             #
             # print(f"Time taken: {duration} seconds")
             plt.draw()
-            plt.pause(0.1)
+            plt.pause(0.01)

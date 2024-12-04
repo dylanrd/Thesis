@@ -19,7 +19,7 @@ int raw = 0;
 int raw2 = 0;
 float Vin = 5;
 float Vout = 0;
-float R1 = 1000;
+float R1 = 10000;
 float RMux = 125;
 float R2 = 0;
 float buffer = 0;
@@ -184,7 +184,7 @@ for(int j = 0; j < num_5v; j++){
           Serial.print(",");
           Serial.print(current_sensor);
           Serial.println();
-          delay(10);
+          //delay(10);
           //bigDrop(current_sensor, abs(R2));
         }
 

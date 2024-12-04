@@ -44,40 +44,44 @@ while True:  # While loop that loops forever
         # mean = np.mean(1. / max)
         # std = np.std(1. / max)
 
-
-print(max)
-heights = np.random.randint(1, 10, size=len(x))  # Heights of the bars
-
-# Width and depth of bars
-dx = dy = 1
-
-
-
-# Create the 3D bar chart
-fig = plt.figure(figsize=(10, 10))
-ax = fig.add_subplot(111, projection='3d')
-colors = cm.viridis(1/max)
-ax.bar3d(x, y, z, dx, dy, 1/max, color=colors, shade=True)
-
-# Add labels
-ax.set_xlabel('X Axis')
-ax.set_ylabel('Y Axis')
-ax.set_zlabel('Z Axis')
-
-
-temp = compute_equivalent_conductance(1/max)
-res,error = fixed_point_recover_conductances(temp)
-fig2 = plt.figure(figsize=(10, 10))
-ax2 = fig2.add_subplot(111, projection='3d')
-colors = cm.viridis(res)
-ax2.bar3d(x, y, z, dx, dy, res, color=colors, shade=True)
-
-# Add labels
-ax2.set_xlabel('X Axis')
-ax2.set_ylabel('Y Axis')
-ax2.set_zlabel('Z Axis')
-
-
-
+fig, ax = plt.subplots()
+heatmap = ax.imshow((1/max).reshape(15, 16))
+plt.colorbar(heatmap)
+# print(np.array(1/max).reshape(15,16))
+# heights = np.random.randint(1, 10, size=len(x))  # Heights of the bars
+#
+# # Width and depth of bars
+# dx = dy = 1
+#
+#
+#
+# # Create the 3D bar chart
+# fig = plt.figure(figsize=(10, 10))
+# ax = fig.add_subplot(111, projection='3d')
+# colors = cm.viridis(1/max)
+# ax.bar3d(x, y, z, dx, dy, 1/max, color=colors, shade=True)
+#
+# # Add labels
+# ax.set_xlabel('X Axis')
+# ax.set_ylabel('Y Axis')
+# ax.set_zlabel('Z Axis')
+#
+# print('hiiiiii')
+# temp = compute_equivalent_conductance(np.array(1/max).reshape(15,16))
+# print(temp)
+# res,error = fixed_point_recover_conductances(temp)
+# print(res)
+# fig2 = plt.figure(figsize=(10, 10))
+# ax2 = fig2.add_subplot(111, projection='3d')
+# colors = cm.viridis(res.flatten())
+# ax2.bar3d(x, y, z, dx, dy, res.flatten(), color=colors, shade=True)
+#
+# # Add labels
+# ax2.set_xlabel('X2 Axis')
+# ax2.set_ylabel('Y2 Axis')
+# ax2.set_zlabel('Z2 Axis')
+#
+#
+#
 plt.title("3D Bar Chart")
 plt.show()
