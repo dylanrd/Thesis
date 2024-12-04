@@ -2,7 +2,8 @@ import numpy as np
 from scipy.ndimage import median_filter
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter
-
+from scipy.ndimage import maximum_filter
+from sklearn.cluster import DBSCAN
 def moving_average_filter(matrix, window_size=3):
     filtered_matrix = []
     for row in matrix:
@@ -95,3 +96,55 @@ def compensate_row_and_column_minimum(sensor_matrix):
         col_compensated_matrix[col_compensated_matrix[:, j] < 0, j] = 0  # Ensure non-negative values
 
     return col_compensated_matrix
+
+def multi_peak_detection_with_enhancements(sensor_matrix, neighborhood_factor=0.2, min_peak_fraction=0.2, min_cluster_size=1):
+    """
+    Detect multiple significant peaks with crosstalk suppression, adaptive thresholding, and clustering.
+
+    Parameters:
+        sensor_matrix (numpy array): Input matrix of sensor readings.
+        neighborhood_factor (float): Fraction of matrix size to determine neighborhood size.
+        min_peak_fraction (float): Fraction of maximum value per row/column to set as a threshold.
+        min_cluster_size (int): Minimum size of clusters to retain.
+
+    Returns:
+        numpy array: Matrix with clustered peaks retained and crosstalk suppressed.
+    """
+    # Step 1: Compute adaptive threshold per row and column based on their mean or max
+    row_thresholds = np.max(sensor_matrix, axis=1) * min_peak_fraction
+    col_thresholds = np.max(sensor_matrix, axis=0) * min_peak_fraction
+
+    # Apply row and column adaptive thresholds
+    thresholded_matrix = np.zeros_like(sensor_matrix)
+    for i in range(sensor_matrix.shape[0]):
+        for j in range(sensor_matrix.shape[1]):
+            if sensor_matrix[i, j] >= row_thresholds[i] and sensor_matrix[i, j] >= col_thresholds[j]:
+                thresholded_matrix[i, j] = sensor_matrix[i, j]
+
+    # Step 2: Detect local maxima with adaptive neighborhood size
+    neighborhood_size = int(max(1, neighborhood_factor * max(sensor_matrix.shape)))  # Adaptive neighborhood
+    local_max = (thresholded_matrix == maximum_filter(thresholded_matrix, size=neighborhood_size))
+
+    # Retain only the peaks
+    peaks = np.where(local_max & (thresholded_matrix > 0), thresholded_matrix, 0)
+
+    # Step 3: Clustering to group adjacent peaks (DBSCAN clustering)
+    # Create a list of (row, col) positions of detected peaks
+    peak_positions = np.array(np.nonzero(peaks)).T  # Get indices of non-zero peaks
+
+    if len(peak_positions) > 0:
+        clustering = DBSCAN(eps=neighborhood_size, min_samples=min_cluster_size).fit(peak_positions)
+
+        # Create a matrix for clustered peaks
+        clustered_peaks = np.zeros_like(sensor_matrix)
+        for cluster_id in np.unique(clustering.labels_):
+            if cluster_id != -1:  # Exclude noise points
+                cluster_indices = peak_positions[clustering.labels_ == cluster_id]
+                # Retain maximum value in the cluster
+                max_value = np.max([sensor_matrix[row, col] for row, col in cluster_indices])
+                for row, col in cluster_indices:
+                    clustered_peaks[row, col] = max_value
+
+        return clustered_peaks
+
+    return peaks  # If no clusters are found, return peaks
