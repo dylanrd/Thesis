@@ -69,3 +69,29 @@ def apply_spatial_filter(matrix, sigma=1.0):
     """ Apply a Gaussian filter to smooth the matrix. """
     return gaussian_filter(matrix, sigma=sigma)
 
+
+def compensate_row_and_column_minimum(sensor_matrix):
+    """
+    Compensate each row and column of the matrix by subtracting the minimum values.
+
+    Parameters:
+        sensor_matrix (numpy array): Input matrix of sensor readings.
+
+    Returns:
+        numpy array: Matrix after row and column compensation.
+    """
+    # Step 1: Row-wise minimum compensation
+    row_compensated_matrix = np.zeros_like(sensor_matrix)
+    for i, row in enumerate(sensor_matrix):
+        row_min = np.min(row)  # Find the minimum value in the row
+        row_compensated_matrix[i] = row - row_min  # Subtract it from the row
+        row_compensated_matrix[i][row_compensated_matrix[i] < 0] = 0  # Ensure non-negative values
+
+    # Step 2: Column-wise minimum compensation
+    col_compensated_matrix = np.zeros_like(row_compensated_matrix)
+    for j in range(row_compensated_matrix.shape[1]):
+        col_min = np.min(row_compensated_matrix[:, j])  # Find the minimum value in the column
+        col_compensated_matrix[:, j] = row_compensated_matrix[:, j] - col_min  # Subtract it from the column
+        col_compensated_matrix[col_compensated_matrix[:, j] < 0, j] = 0  # Ensure non-negative values
+
+    return col_compensated_matrix

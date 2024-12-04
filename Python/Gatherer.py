@@ -72,6 +72,10 @@ plt.colorbar(heatmap)
 # heatmap = ax.imshow(apply_spatial_filter(weighted_neighbor_correction(adaptive_thresholding(mat))))
 # plt.colorbar(heatmap)
 
+# fig, ax = plt.subplots()
+# heatmap = ax.imshow(compensate_row_and_column_minimum(mat))
+# plt.colorbar(heatmap)
+
 plt.title("3D Bar Chart")
 plt.show()
 
