@@ -68,14 +68,14 @@ plt.colorbar(heatmap)
 # heatmap = ax.imshow(apply_savitzky_golay_filter(mat))
 # plt.colorbar(heatmap)
 
-# fig, ax = plt.subplots()
-# heatmap = ax.imshow(apply_spatial_filter(weighted_neighbor_correction(adaptive_thresholding(mat))))
-# plt.colorbar(heatmap)
+fig, ax = plt.subplots()
+heatmap = ax.imshow(apply_spatial_filter(weighted_neighbor_correction(adaptive_thresholding_max(mat))))
+plt.colorbar(heatmap)
 
 # fig, ax = plt.subplots()
 # heatmap = ax.imshow(compensate_row_and_column_minimum(mat))
 # plt.colorbar(heatmap)
-
+#
 # fig, ax = plt.subplots()
 # heatmap = ax.imshow(multi_peak_detection_with_enhancements(mat))
 # plt.colorbar(heatmap)
