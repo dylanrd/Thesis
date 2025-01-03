@@ -34,6 +34,7 @@ with open(log_file, mode="a", newline="") as file:
             sensor_id = int(parts[0])
             resistance = float(parts[1])
             if sensor_id == start_index:
+                print('captured an iteration')
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
             # Write the data to the CSV file
