@@ -1,3 +1,5 @@
+#include <SoftwareSerial.h>
+
 extern unsigned int __bss_end;
 extern unsigned int __heap_start;
 extern void *__brkval;
@@ -46,8 +48,14 @@ unsigned long startTime;
 unsigned long endTime;
 unsigned long duration;
 
+#define ESP32_RX 0  // RX pin for Arduino (connects to ESP32 TX)
+#define ESP32_TX 3  // TX pin for Arduino (connects to ESP32 RX, not used in this case)
+
+// Create SoftwareSerial instance
+SoftwareSerial espSerial(ESP32_RX, ESP32_TX);
 
 void setup(){
+  espSerial.begin(9600);
   Serial.begin(115200);
   pinMode(channelA,OUTPUT);
   pinMode(channelB,OUTPUT);
@@ -169,7 +177,10 @@ for(int j = 0; j < num_5v; j++){
         // Serial.print(",");
         // Serial.print(current_sensor);
         // Serial.println();
-        
+        if (espSerial.available()) {
+          String timestamp = espSerial.readStringUntil('\n'); // Read data from ESP32
+          Serial.println("Received timestamp from ESP32: " + timestamp); // Log to the computer
+        }
         //delay(5);
         if (calibrate < 10) {
 
