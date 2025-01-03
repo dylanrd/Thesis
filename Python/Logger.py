@@ -20,6 +20,7 @@ with open(log_file, mode="a", newline="") as file:
     # Continuously read from the serial port
     while True:
         try:
+            print('starting')
             # Read a line of data from the serial port
             line = arduinoData.readline().decode("utf-8").strip()
             if not line:
@@ -31,15 +32,15 @@ with open(log_file, mode="a", newline="") as file:
                 print(f"Malformed data: {line}")
                 continue
 
-            sensor_id = int(parts[0])
-            resistance = float(parts[1])
+            resistance = float(parts[0])
+            sensor_id = int(parts[1])
             if sensor_id == start_index:
                 print('captured an iteration')
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
             # Write the data to the CSV file
             writer.writerow([timestamp, sensor_id, resistance])
-            print(f"Logged: {timestamp}, Sensor {sensor_id}, Resistance {resistance} Ohms")
+            #print(f"Logged: {timestamp}, Sensor {sensor_id}, Resistance {resistance} Ohms")
 
         except KeyboardInterrupt:
             print("Logging stopped by user.")
