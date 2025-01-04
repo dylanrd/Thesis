@@ -134,6 +134,8 @@ void selectChannel5v2(int chnl){/* function selectChannel */
 
 void MuxMaxxing(){/* function MuxLED */ 
 //// blink leds 
+String timestamp = "";
+
 for(int j = 0; j < num_5v; j++){
   if (j < 7) {
       selectChannel5v(j);
@@ -154,6 +156,28 @@ for(int j = 0; j < num_5v; j++){
 
       int current_sensor = (j * num_serial) + i;
       
+      if (espSerial.available() && current_sensor == 0) {
+            char ch;
+            
+            serial.println(espSerial.read());
+            // Wait for the start marker '<'
+            while ((ch = espSerial.read()) != '<') {
+              if (!espSerial.available()) {
+                timestamp = "";
+                break;
+              } 
+            }
+
+            // Read until the end marker '>'
+            while ((ch = espSerial.read()) != '>') {
+              timestamp += ch;
+              if (!espSerial.available()) {
+                timestamp = "";
+                break;
+              }  // Exit if incomplete
+            }
+      }
+
       if(raw){
         
         Vout = (raw * Vin) / 1024.0;
@@ -177,10 +201,7 @@ for(int j = 0; j < num_5v; j++){
         // Serial.print(",");
         // Serial.print(current_sensor);
         // Serial.println();
-        if (espSerial.available()) {
-          String timestamp = espSerial.readStringUntil('\n'); // Read data from ESP32
-          Serial.println("Received timestamp from ESP32: " + timestamp); // Log to the computer
-        }
+        
         //delay(5);
         if (calibrate < 10) {
 
@@ -191,9 +212,12 @@ for(int j = 0; j < num_5v; j++){
           listArray[current_sensor] /= 10;
           // Serial.println(listArray[current_sensor]);
         } else {
+          
           Serial.print(R2);
           Serial.print(",");
           Serial.print(current_sensor);
+          Serial.print(",");
+          Serial.print(timestamp);
           Serial.println();
           //delay(10);
           //bigDrop(current_sensor, abs(R2));
