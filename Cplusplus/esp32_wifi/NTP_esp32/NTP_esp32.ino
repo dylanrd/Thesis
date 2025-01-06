@@ -13,7 +13,7 @@ const int daylightOffset_sec = 3600; // Adjust for daylight savings
 
 void setup() {
   Serial.begin(115200);
-  Serial1.begin(9600, SERIAL_8N1, -1, 17);
+  Serial1.begin(115200, SERIAL_8N1, -1, 17);
   // Connect to Wi-Fi
   Serial.print("Connecting to Wi-Fi");
   WiFi.begin(ssid, password);
@@ -55,5 +55,5 @@ void loop() {
   Serial1.print("<");
   Serial1.printf("%s.%03d", timeString, milliseconds);
   Serial1.print(">\n");
-  // delay(); // Update every second
+  delay(10); // Update every second
 }

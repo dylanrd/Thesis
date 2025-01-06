@@ -55,8 +55,8 @@ unsigned long duration;
 SoftwareSerial espSerial(ESP32_RX, ESP32_TX);
 
 void setup(){
-  espSerial.begin(9600);
-  Serial.begin(115200);
+  espSerial.begin(115200);
+  Serial.begin(2000000);
   pinMode(channelA,OUTPUT);
   pinMode(channelB,OUTPUT);
   pinMode(channelC,OUTPUT);
@@ -159,7 +159,7 @@ for(int j = 0; j < num_5v; j++){
       if (espSerial.available() && current_sensor == 0) {
             char ch;
             
-            serial.println(espSerial.read());
+            //serial.println(espSerial.read());
             // Wait for the start marker '<'
             while ((ch = espSerial.read()) != '<') {
               if (!espSerial.available()) {
