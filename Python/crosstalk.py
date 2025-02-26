@@ -1,72 +1,163 @@
 import numpy as np
-from scipy.linalg import solve
+import scipy.linalg
+import matplotlib.pyplot as plt
+def create_conductance_matrix(g):
+    """
+    Creates the conductance matrix C for the linear system of equations.
 
-# Function to compute equivalent conductances for a given NxN conductance matrix
-def compute_equivalent_conductance(conductances):
-    """Compute equivalent conductances for a given NxN conductance matrix."""
-    n, m = conductances.shape
-    equivalent_conductances = np.zeros((n, m))
+    Args:
+        g (numpy.ndarray): A 2D numpy array representing the cell conductances (g_ji).
 
-    for i in range(n):
-        for j in range(m):
-            G = np.zeros(n + m)  # Extend to handle both row and column nodes explicitly
-            G[i] = -1  # Inject current at row i
-            G[n + j] = 1  # Extract current at column j
+    Returns:
+        numpy.ndarray: The conductance matrix C.
+    """
+    N, M = g.shape  # N = number of rows, M = number of columns
+    C = np.zeros((N + M - 1, N + M - 1))
 
-            # Create the conductance matrix for Kirchhoff's Law
-            C = np.zeros((n + m, n + m))
+    # Calculate row and column sums of conductances
+    row_sums = np.sum(g, axis=1)
+    col_sums = np.sum(g, axis=0)
 
-            # Fill in the conductance matrix
-            for k in range(n):
-                for l in range(m):
-                    C[k, k] += conductances[k, l]  # Row contributions
-                    C[n + l, n + l] += conductances[k, l]  # Column contributions
-                    C[k, n + l] -= conductances[k, l]
-                    C[n + l, k] -= conductances[k, l]
+    # Fill in the matrix elements
+    for i in range(1, N):  # Rows 2 to N (index 0 is row 1 which is the reference)
+        C[i - 1, i - 1] = row_sums[i]  # Diagonal elements for rows
+        for j in range(M):
+            C[i - 1, N - 1 + j] = -g[i, j]  # Off-diagonal elements for rows
 
-            # Regularize and solve the system
-            C[n + m - 1, n + m - 1] += 1e-6  # Small regularization on one node
-            try:
-                voltages = solve(C, G)
-                voltage_difference = voltages[n + j] - voltages[i]
-                equivalent_conductances[i, j] = 1 / (voltage_difference + 1e-6)  # Avoid division by zero
-            except np.linalg.LinAlgError:
-                equivalent_conductances[i, j] = 1e10  # Fallback for singular matrix
+    for j in range(M):  # Columns
+        C[N - 1 + j, N - 1 + j] = col_sums[j]  # Diagonal elements for columns
+        for i in range(1, N):
+            C[N - 1 + j, i - 1] = -g[i, j]  # Off-diagonal elements for columns
 
-    return equivalent_conductances
+    return C
 
 
-# Fixed-Point Iteration function with checks
-def fixed_point_recover_conductances(measured_equivalent_conductances, max_iter=100, tol=1e-6, beta=0.5):
-    """Recover conductances using Fixed-Point Iteration."""
-    n, m = measured_equivalent_conductances.shape
-    g_recovered = np.maximum(measured_equivalent_conductances, 1e-6)  # Ensure no conductance is zero
+def calculate_equivalent_conductance(g, i, j):
+    """
+    Calculates the equivalent conductance G_ji between row i and column j
+    given the cell conductances g.
 
-    for _ in range(max_iter):
-        G_estimated = compute_equivalent_conductance(g_recovered)
-        error = np.max(np.abs(G_estimated - measured_equivalent_conductances))
+    Args:
+        g (numpy.ndarray): A 2D numpy array representing the cell conductances (g_ji).
+        i (int): The row index (starting from 1).
+        j (int): The column index (starting from 0).
 
-        if error < tol:
-            break
+    Returns:
+        float: The equivalent conductance G_ji.
+    """
+    N, M = g.shape
+    C = create_conductance_matrix(g)
+    Iref = 1.0  # Reference current
 
-        g_recovered += beta * (measured_equivalent_conductances - G_estimated)
-        g_recovered = np.maximum(g_recovered, 1e-6)  # Ensure no conductance is zero
+    # Create the current vector I
+    I = np.zeros(N + M - 1)
+    if i > 1:
+        I[i - 2] = -Iref  # Row current injection
+    I[N - 1 + j] = Iref  # Column current extraction
 
-    return g_recovered, error
+    # Solve the linear system CV = I
+    V = scipy.linalg.solve(C, I)
 
-#
-# # Simulate a 16x16 matrix of true conductances
-# np.random.seed(0)
-# true_conductances = np.random.uniform(0.1, 1.0, size=(16, 16))
-#
-# # Compute the "measured" equivalent conductances (affected by crosstalk)
-# measured_equivalent_conductances = compute_equivalent_conductance(true_conductances)
-#
-# # Recover the true conductances using Fixed-Point Iteration
-# recovered_conductances, final_error = fixed_point_recover_conductances(measured_equivalent_conductances)
-#
-# # Output results
-# print("True Conductances (First 5 Rows):\n", true_conductances[:5, :5])
-# print("Measured Conductances (First 5 Rows):\n", measured_equivalent_conductances[:5, :5])
-# print("Recovered Conductances (First 5 Rows):\n", recovered_conductances[:5, :5])
-# print(f"Final Error after Correction: {final_error:.6f}")
+    # Calculate the voltage difference
+    if i > 1:
+        V_i = V[i - 2]  # Voltage at row i
+    else:
+        V_i = 0.0  # Row 1 is the reference (ground)
+
+    V_j = V[N - 1 + j]  # Voltage at column j
+
+    # Calculate the equivalent conductance
+    G_ji = Iref / (V_j - V_i)
+    return G_ji
+
+
+def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations=150, tolerance=1e-6, relaxation_factor=0.5):
+    """
+    Estimates the cell conductances g_ji from the equivalent conductances G_ji
+    using a fixed-point iteration method.
+
+    Args:
+        G (numpy.ndarray): A 2D numpy array representing the measured equivalent conductances (G_ji).
+        initial_guess (numpy.ndarray, optional): An initial guess for the cell conductances (g_ji).
+                                                  If None, a default initial guess is used. Defaults to None.
+        max_iterations (int, optional): The maximum number of iterations. Defaults to 100.
+        tolerance (float, optional): The convergence tolerance. Defaults to 1e-6.
+        relaxation_factor (float, optional): The relaxation factor to improve convergence. Defaults to 0.5.
+
+    Returns:
+        numpy.ndarray: The estimated cell conductances (g_ji).
+    """
+    N, M = G.shape  #N rows and M columns
+
+    # Initialize cell conductances
+    if initial_guess is None:
+        g_est = np.ones((N, M))  # Start with all conductances equal to 1
+    else:
+        g_est = initial_guess.copy() #use the copy to avoid modifying the input data
+
+    for iteration in range(max_iterations):
+        g_est_prev = g_est.copy()
+
+        # Iterate over all cells
+        for i in range(N):
+            for j in range(M):
+                # Calculate equivalent conductance using current estimate
+                G_est_ji = calculate_equivalent_conductance(g_est, i + 1, j)
+
+                # Update cell conductance using fixed-point iteration with relaxation
+                g_est[i, j] = g_est_prev[i, j] + relaxation_factor * (G[i, j] - G_est_ji)
+
+                # Ensure non-negative conductance
+                g_est[i, j] = max(0.0, g_est[i, j])
+
+        # Check for convergence
+        change = np.sum(np.abs(g_est - g_est_prev))
+        if change < tolerance:
+            print(f"Fixed-point iteration converged after {iteration + 1} iterations")
+            return g_est
+
+    print("Fixed-point iteration did not converge within the maximum number of iterations")
+    return g_est
+
+
+# Example Usage:
+if __name__ == '__main__':
+    # Define the size of the sensor array
+    N = 3  # Number of rows
+    M = 3  # Number of columns
+
+    # Create a sample cell conductance matrix (replace with your actual values)
+    g_true = np.random.rand(N, M)  # Random conductances between 0 and 1
+    print("True cell conductances:\n", g_true)
+
+    # Calculate the equivalent conductance matrix G
+    G = np.zeros((N, M))
+    for i in range(N):
+        for j in range(M):
+            G[i, j] = calculate_equivalent_conductance(g_true, i + 1, j)
+    print("\nEquivalent conductances:\n", G)
+
+    # Estimate cell conductances from equivalent conductances using fixed-point iteration
+    g_estimated = estimate_cell_conductances_fixed_point(G)
+    print("\nEstimated cell conductances:\n", g_estimated)
+
+    # Calculate the relative error
+    relative_error = np.mean(np.abs((g_estimated - g_true) / g_true))
+    print(f"\nMean relative error: {relative_error:.4f}")
+
+    g_estimated = (g_estimated - np.min(g_estimated)) / (np.max(g_estimated) - np.min(g_estimated) + 1e-9)
+
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.imshow(G, cmap='viridis', interpolation='nearest')
+    plt.colorbar(label='Measured Conductance (S)')
+    plt.title('Measured Conductances')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(g_estimated, cmap='viridis', interpolation='nearest')
+    plt.colorbar(label='Estimated True Conductance (Normalized)')
+    plt.title('Estimated True Conductances')
+
+    plt.tight_layout()
+    plt.show()
+

@@ -8,6 +8,8 @@ __pycache__/
 **/Data/
 **/Data2/
 **/Data3/
+**/filtered/
+**/unfiltered
 # Distribution / packaging
 .Python
 build/

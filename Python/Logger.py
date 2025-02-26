@@ -3,13 +3,14 @@ import time
 import csv
 
 
-arduinoData = serial.Serial('com9', 2000000)
+arduinoData = serial.Serial('com9', 115200)
 
 # Log file name
-log_file = "sensor_readings.csv"
+log_file = "sensor_readings4.csv"
 
 start_index = 0
 # Open the log file in append mode
+print("Logging started")
 with open(log_file, mode="a", newline="") as file:
     writer = csv.writer(file)
 
