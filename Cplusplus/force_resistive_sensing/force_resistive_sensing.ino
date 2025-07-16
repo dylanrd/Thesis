@@ -15,30 +15,34 @@ int freeMemory() {
 }
 
 
-int analogPin = 0;
-int analogPin2 = 1;
+int analogPin = 1;
+int analogPin2 = 2;
+int analogPin3 = 3;
 int raw = 0;
 int raw2 = 0;
-float Vin = 5;
+float Vin = 3.3;
 float Vout = 0;
 float R1 = 10000;
 float RMux = 125;
 float R2 = 0;
 float buffer = 0;
 
-const int channelA = 2;
-const int channelB = 4;
-const int channelC = 6;
+const int channelA_read = 15;
+const int channelB_read = 16;
+const int channelC_read = 17;
+const int channelD_read = 18;
 
-const int channelA5v = 8;
-const int channelB5v = 10;
-const int channelC5v = 12;
-const int channelA5v2 = 3;
-const int channelB5v2 = 5;
-const int channelC5v2 = 7;
+const int channelA_V = 11;
+const int channelB_V = 12;
+const int channelC_V = 13;
+const int channelD_V = 14;
+
+const inhibit_one = 8;
+const inhibit_two = 9;
+const inhibit_three = 10;
 
 const int num_serial = 16;     
-const int num_5v = 15;
+const int num_5v = 16;
 float listArray[num_serial * num_5v];
 //int pressed[num_serial * 8];
 int calibrate = 0;
@@ -48,21 +52,28 @@ unsigned long startTime;
 unsigned long endTime;
 unsigned long duration;
 
-#define ESP32_RX 0  // RX pin for Arduino (connects to ESP32 TX)
-#define ESP32_TX 3  // TX pin for Arduino (connects to ESP32 RX, not used in this case)
+// #define ESP32_RX 0  // RX pin for Arduino (connects to ESP32 TX)
+// #define ESP32_TX 3  // TX pin for Arduino (connects to ESP32 RX, not used in this case)
 
-// Create SoftwareSerial instance
-SoftwareSerial espSerial(ESP32_RX, ESP32_TX);
+// // Create SoftwareSerial instance
+// SoftwareSerial espSerial(ESP32_RX, ESP32_TX);
 
 void setup(){
-  espSerial.begin(115200);
-  Serial.begin(2000000);
+  // espSerial.begin(115200);
+  Serial.begin(115200);
   pinMode(channelA,OUTPUT);
   pinMode(channelB,OUTPUT);
   pinMode(channelC,OUTPUT);
+  pinMode(inhibit_one, OUTPUT);
+  pinMode(inhibit_two, OUTPUT);
+  pinMode(inhibit_three, OUTPUT);
   digitalWrite(channelA, LOW);
   digitalWrite(channelB, LOW);
   digitalWrite(channelC, LOW);
+  digitalWrite(inhibit_one, HIGH);
+  digitalWrite(inhibit_two, LOW);
+  digitalWrite(inhibit_two, THREE);
+  
 }
 
 void loop(){
@@ -92,9 +103,11 @@ void selectChannel(int chnl){/* function selectChannel */
   int A = bitRead(chnl,0); //Take first bit from binary value of i channel.
   int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
   int C = bitRead(chnl,2); //Take third bit from value of i channel.
-  digitalWrite(channelA, A);
-  digitalWrite(channelB, B);
-  digitalWrite(channelC, C);
+  int D = bitRead(chnl,3);
+  digitalWrite(channelA_read, A);
+  digitalWrite(channelB_read, B);
+  digitalWrite(channelC_read, C);
+  digitalWrite(channelD_read, D);
   
 }
 
@@ -103,80 +116,29 @@ void selectChannel5v(int chnl){/* function selectChannel */
   int A = bitRead(chnl,0); //Take first bit from binary value of i channel.
   int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
   int C = bitRead(chnl,2); //Take third bit from value of i channel.
-  digitalWrite(channelA5v, A);
-  digitalWrite(channelB5v, B);
-  digitalWrite(channelC5v, C);
+  int D = bitRead(chnl,3);
+  digitalWrite(channelA_V, A);
+  digitalWrite(channelB_V, B);
+  digitalWrite(channelC_V, C);
+  digitalWrite(channelD_V, C);
   
 }
-
-void selectChannel5v2(int chnl){/* function selectChannel */ 
-//// Select channel of the multiplexer 
-  int A = bitRead(chnl,0); //Take first bit from binary value of i channel.
-  int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
-  int C = bitRead(chnl,2); //Take third bit from value of i channel.
-  digitalWrite(channelA5v2, A);
-  digitalWrite(channelB5v2, B);
-  digitalWrite(channelC5v2, C);
-  
-}
-
-// void printPressed() {
-//   Serial.println("These are pressed: ");
-
-//   for (int i = 0; i < (num_serial * num_5v); i++) {
-//     if (pressed[i] == 1) {
-//       Serial.print(i);
-//       Serial.print(" ");
-//     }
-//   }
-//   Serial.println(" ");
-// }
 
 void MuxMaxxing(){/* function MuxLED */ 
 //// blink leds 
 String timestamp = "";
 
 for(int j = 0; j < num_5v; j++){
-  if (j < 7) {
-      selectChannel5v(j);
-    } else {
-      selectChannel5v(7);
-      selectChannel5v2((j + 1) % 8);
-    }
-  // Serial.println(j);
-  // delay(500);
+  
+  selectChannel5v(j);
   for(int i = 0; i <  num_serial; i++){
       
-      selectChannel(i % 8);
-      if (i < 8) {
-        raw = analogRead(analogPin);
-      } else {
-        raw = analogRead(analogPin2);
-      }
+      selectChannel(i);
+      
+      raw = analogRead(analogPin);
+      
 
       int current_sensor = (j * num_serial) + i;
-      
-      if (espSerial.available() && current_sensor == 0) {
-            char ch;
-            
-            //serial.println(espSerial.read());
-            // Wait for the start marker '<'
-            while ((ch = espSerial.read()) != '<') {
-              if (!espSerial.available()) {
-                timestamp = "";
-                break;
-              } 
-            }
-
-            // Read until the end marker '>'
-            while ((ch = espSerial.read()) != '>') {
-              timestamp += ch;
-              if (!espSerial.available()) {
-                timestamp = "";
-                break;
-              }  // Exit if incomplete
-            }
-      }
 
       if(raw){
         
