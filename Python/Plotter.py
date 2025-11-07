@@ -3,71 +3,151 @@ import numpy as np  # Import numpy
 import matplotlib
 from matplotlib import pyplot as plt
 import time
+import sys
+
+# Set matplotlib backend
 matplotlib.use('TkAgg')
 
-fiveV_lines = 15
+# Configuration
+fiveV_lines = 16
 read_lines = 16
+total_sensors = fiveV_lines * read_lines
 
+# Initialize arrays
 tempF = []
 pressure = []
-arduinoData = serial.Serial('com9', 115200)  # Creating our serial object named arduinoData
 
-fig, ax = plt.subplots()
-heatmap = ax.imshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma')
-plt.colorbar(heatmap)
+# Try to connect to serial port
+try:
+    arduinoData = serial.Serial('com11', 115200, timeout=1)  # Creating our serial object named arduinoData
+    print("✅ Connected to Arduino on COM11")
+except serial.SerialException as e:
+    print(f"❌ Failed to connect to Arduino: {e}")
+    print("Please check:")
+    print("1. Arduino is connected to COM11")
+    print("2. No other programs are using the serial port")
+    print("3. Arduino is powered on")
+    sys.exit(1)
 
-# fig2, ax2 = plt.subplots()
-# heatmap2 = ax2.matshow(np.zeros((read_lines, fiveV_lines)), cmap='plasma')
-# plt.colorbar(heatmap2)
+# Setup matplotlib
+fig, ax = plt.subplots(figsize=(10, 8))
+heatmap = ax.imshow(np.zeros((fiveV_lines, read_lines)), cmap='plasma', vmin=0, vmax=1)
+plt.colorbar(heatmap, label='Normalized Pressure')
+ax.set_title('Force Resistive Sensor Array')
+ax.set_xlabel('Sensor Columns')
+ax.set_ylabel('Sensor Rows')
+plt.ion()  # Turn on interactive mode
+
+# Initialize variables
 cnt = 0
 sensorTracker = 0
 initialiser = 0
-mean = 0
-std = 0
-max = np.zeros(read_lines * fiveV_lines, dtype=float)
-current = np.zeros(read_lines * fiveV_lines, dtype=float)
+baseline_frames = 10
+baseline_buffer = []
+baseline_collected = False
 
-# plt.show(block=False)
-while True:  # While loop that loops forever
-    # tim = time.perf_counter()
-    arduinoString = arduinoData.readline()  # read the line of text from the serial port
-    #print(arduinoString)
-    dataArray = arduinoString.decode('utf-8').split(',')  # Split it into an array called dataArray
-    temp = float(dataArray[0])
-    index = int(dataArray[1])
+# Arrays for sensor data
+baseline = np.zeros(total_sensors, dtype=float)
+current = np.zeros(total_sensors, dtype=float)
 
-    if initialiser < 10:
-        max[index] += temp
+print("📡 Collecting baseline data... Please ensure mat is empty.")
+print("Press Ctrl+C to exit")
 
-        if index == 0:
-            initialiser += 1
-        if initialiser >= 10:
-            max = max / float(10)
-            # mean = np.mean(1. / max)
-            # std = np.std(1. / max)
-    else:
-        current[index] = temp
-
-        if index == 0:
-            norm = (current/max)
-            minimum = current.min()
-            maximum = current.max()
-            normalisation = (current - minimum) / (maximum - minimum)
-            #
-            # deviation = (max - current)
-            #
-            # max_deviation = np.max(deviation)
-            # normalized_values = deviation / max
-            G = (1. /current) - mean + 4*std
-            R = 1/G
-            # normalized_values = np.clip(normalized_values, 0, 1)
-            normalisationArray = norm.reshape(fiveV_lines, read_lines)
-            #print(G)
-            heatmap.set_data(normalisationArray)
-            # heatmap2 = ax2.matshow(current.reshape(fiveV_lines, read_lines), vmin=0, vmax=100)
-            # end_time = time.perf_counter()  # End time
-            # duration = end_time - tim
-            #
-            # print(f"Time taken: {duration} seconds")
-            plt.draw()
-            plt.pause(0.01)
+try:
+    while True:  # Main data collection loop
+        try:
+            # Read data from serial port
+            arduinoString = arduinoData.readline()
+            
+            # Skip empty lines
+            if not arduinoString:
+                continue
+                
+            # Decode and parse data
+            dataArray = arduinoString.decode('utf-8').strip().split(',')
+            
+            # Validate data format
+            if len(dataArray) != 2:
+                continue
+                
+            # Parse values with error handling
+            try:
+                resistance = float(dataArray[0])
+                index = int(dataArray[1])
+            except (ValueError, IndexError):
+                continue
+                
+            # Validate index range
+            if index < 0 or index >= total_sensors:
+                continue
+                
+            # Store current reading
+            current[index] = resistance
+            
+            # Process when we have a complete frame (index 0 indicates new frame)
+            if index == 0:
+                # Replace any zero or negative values with small positive values
+                current_fixed = np.where(current <= 0, 1e-6, current)
+                
+                # Convert resistance to conductance (1/R)
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    conductance = np.where(current_fixed > 0, 1.0 / current_fixed, 0.0)
+                
+                # Check for valid conductance values
+                if not np.all(np.isfinite(conductance)):
+                    print("⚠️ Skipping frame: invalid conductance values detected")
+                    continue
+                
+                # Baseline collection phase
+                if not baseline_collected:
+                    baseline_buffer.append(conductance.copy())
+                    print(f"📊 Collecting baseline frame {len(baseline_buffer)} / {baseline_frames}")
+                    
+                    if len(baseline_buffer) >= baseline_frames:
+                        baseline = np.mean(baseline_buffer, axis=0)
+                        baseline_collected = True
+                        print("✅ Baseline collected. You may now step on the mat.")
+                    continue
+                
+                # Normal operation: compute pressure difference
+                pressure_difference = conductance - baseline
+                pressure_difference = np.clip(pressure_difference, 0, None)  # Only positive pressure
+                
+                # Normalize to [0, 1] for visualization
+                max_pressure = np.max(pressure_difference)
+                if max_pressure > 0:
+                    normalized_pressure = pressure_difference / max_pressure
+                else:
+                    normalized_pressure = pressure_difference
+                
+                # Reshape for heatmap display
+                heatmap_data = normalized_pressure.reshape((fiveV_lines, read_lines))
+                
+                # Update the heatmap
+                heatmap.set_data(heatmap_data)
+                heatmap.set_clim(0, 1)  # Set color limits
+                
+                # Update display
+                plt.draw()
+                plt.pause(0.01)
+                
+        except serial.SerialTimeoutException:
+            print("⚠️ Serial timeout - no data received")
+            continue
+        except UnicodeDecodeError:
+            print("⚠️ Unicode decode error - skipping malformed data")
+            continue
+        except Exception as e:
+            print(f"⚠️ Unexpected error: {e}")
+            continue
+            
+except KeyboardInterrupt:
+    print("\n🛑 Plotter stopped by user")
+    arduinoData.close()
+    plt.close('all')
+    sys.exit(0)
+except Exception as e:
+    print(f"❌ Fatal error: {e}")
+    arduinoData.close()
+    plt.close('all')
+    sys.exit(1)

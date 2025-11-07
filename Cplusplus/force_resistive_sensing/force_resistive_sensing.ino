@@ -1,4 +1,4 @@
-#include <SoftwareSerial.h>
+
 
 extern unsigned int __bss_end;
 extern unsigned int __heap_start;
@@ -37,15 +37,17 @@ const int channelB_V = 12;
 const int channelC_V = 13;
 const int channelD_V = 14;
 
-const inhibit_one = 8;
-const inhibit_two = 9;
-const inhibit_three = 10;
+const int inhibit_one = 8;
+const int inhibit_two = 9;
+const int inhibit_three = 10;
 
-const int num_serial = 16;     
-const int num_5v = 16;
-float listArray[num_serial * num_5v];
-//int pressed[num_serial * 8];
+const int num_serial = 48;     
+const int num_5v = 48;
+const int total_sensors = num_serial * num_5v;
+float baseline[total_sensors];  // Store baseline for each sensor
+bool baseline_collected = false;
 int calibrate = 0;
+float threshold = 10000.0;  // Resistance change threshold (adjust as needed)
 
 
 unsigned long startTime;
@@ -60,20 +62,39 @@ unsigned long duration;
 
 void setup(){
   // espSerial.begin(115200);
-  Serial.begin(115200);
-  pinMode(channelA,OUTPUT);
-  pinMode(channelB,OUTPUT);
-  pinMode(channelC,OUTPUT);
+  Serial.begin(2000000);
+  pinMode(channelA_read,OUTPUT);
+  pinMode(channelB_read,OUTPUT);
+  pinMode(channelC_read,OUTPUT);
+  pinMode(channelD_read,OUTPUT); 
+  pinMode(channelA_V,OUTPUT);
+  pinMode(channelB_V,OUTPUT);
+  pinMode(channelC_V,OUTPUT);
+  pinMode(channelD_V,OUTPUT);
   pinMode(inhibit_one, OUTPUT);
   pinMode(inhibit_two, OUTPUT);
   pinMode(inhibit_three, OUTPUT);
-  digitalWrite(channelA, LOW);
-  digitalWrite(channelB, LOW);
-  digitalWrite(channelC, LOW);
-  digitalWrite(inhibit_one, HIGH);
-  digitalWrite(inhibit_two, LOW);
-  digitalWrite(inhibit_two, THREE);
+  digitalWrite(channelA_read, LOW);
+  digitalWrite(channelB_read, LOW);
+  digitalWrite(channelC_read, LOW);
+  digitalWrite(channelD_read, LOW);
+  digitalWrite(channelA_V, LOW);
+  digitalWrite(channelB_V, LOW);
+  digitalWrite(channelC_V, LOW);
+  digitalWrite(channelD_V, LOW);
+  digitalWrite(inhibit_one, LOW);
+  digitalWrite(inhibit_two, HIGH);
+  digitalWrite(inhibit_three, HIGH);
   
+  // Initialize baseline array
+  for(int i = 0; i < total_sensors; i++) {
+    baseline[i] = 0.0;
+  }
+  
+  Serial.println("Force Resistive Sensor Array Initialized");
+  Serial.print("Total sensors: ");
+  Serial.println(total_sensors);
+  Serial.println("Collecting baseline... Please ensure mat is empty");
 }
 
 void loop(){
@@ -88,7 +109,13 @@ void loop(){
   // Serial.println(free_mem);
 
   calibrate++;
-  //Serial.println(listArray[0].get(0));
+  
+  // Show baseline collection progress
+  if (calibrate <= 10) {
+    Serial.print("Baseline collection: ");
+    Serial.print(calibrate);
+    Serial.println("/10");
+  }
 
   // endTime = millis();  // Record the end time
   // duration = endTime - startTime;  // Calculate the duration
@@ -104,24 +131,32 @@ void selectChannel(int chnl){/* function selectChannel */
   int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
   int C = bitRead(chnl,2); //Take third bit from value of i channel.
   int D = bitRead(chnl,3);
+ 
   digitalWrite(channelA_read, A);
   digitalWrite(channelB_read, B);
   digitalWrite(channelC_read, C);
   digitalWrite(channelD_read, D);
+  // delay(5);
   
 }
 
 void selectChannel5v(int chnl){/* function selectChannel */ 
 //// Select channel of the multiplexer 
+  
   int A = bitRead(chnl,0); //Take first bit from binary value of i channel.
   int B = bitRead(chnl,1); //Take second bit from binary value of i channel.
   int C = bitRead(chnl,2); //Take third bit from value of i channel.
   int D = bitRead(chnl,3);
+  // Serial.println(bitRead(chnl,0));
+  // Serial.println(bitRead(chnl,1));
+  // Serial.println(bitRead(chnl,2));
+  // Serial.println(bitRead(chnl,3));
+  // Serial.println("______________________________");
   digitalWrite(channelA_V, A);
   digitalWrite(channelB_V, B);
   digitalWrite(channelC_V, C);
-  digitalWrite(channelD_V, C);
-  
+  digitalWrite(channelD_V, D);
+  // delay(5);
 }
 
 void MuxMaxxing(){/* function MuxLED */ 
@@ -130,73 +165,61 @@ String timestamp = "";
 
 for(int j = 0; j < num_5v; j++){
   
-  selectChannel5v(j);
-  for(int i = 0; i <  num_serial; i++){
+  if (j < 16) {
+    
+    digitalWrite(inhibit_one, LOW);
+    digitalWrite(inhibit_two, HIGH);
+    digitalWrite(inhibit_three, HIGH);
+  } if ((16 <= j) && (j < 32)) {
+    // Serial.println("HERE");
+    digitalWrite(inhibit_one, HIGH);
+    digitalWrite(inhibit_two, LOW);
+    digitalWrite(inhibit_three, HIGH);
+  } if (j >= 32) {
+    digitalWrite(inhibit_one, HIGH);
+    digitalWrite(inhibit_two, HIGH);
+    digitalWrite(inhibit_three, LOW);
+  }
+  selectChannel5v(j % 16);
+  // delay(500);
+  for(int i = 0; i < num_serial; i++){
+      // Serial.println(((i >= 16) && i < 32));
+      selectChannel(i % 16);
+      if (i < 16) {
+        // Serial.println("HERE");
+        raw = analogRead(analogPin);
+      } if ((16 <= i) && (i < 32)) {
+        // Serial.println("NOt supposed to be here");
+        raw = analogRead(analogPin2);
+      } if (i >= 32) {
+        // Serial.println("Not supporsed to be here");
+        raw = analogRead(analogPin3);
+      }
       
-      selectChannel(i);
-      
-      raw = analogRead(analogPin);
       
 
       int current_sensor = (j * num_serial) + i;
-
+      // if (current_sensor == 0) {
+      //   Serial.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa");
+      // }
+      // Serial.println(current_sensor);
+      // Serial.println(raw);
       if(raw){
         
-        Vout = (raw * Vin) / 1024.0;
+        Vout = (raw * Vin) / 4096.0;
         
-        R2= (R1 + RMux) * ((Vin/Vout) - 1);
-        // Serial.print(current_sensor);
-        // Serial.print("Vout: ");
-        //Serial.println(Vout);
-        // Serial.print("R2: ");
-      //   if (current_sensor == 1 || current_sensor == 15) {
-      //    Serial.println(Vout);
-      //    Serial.println(R2);
-      //    delay(500);
-      //  }
-
-      //  if (i < 8) {
-      //    // Serial.println(Vout);
-      //    Serial.println((R1 + RMux) * (Vout/(Vin - Vout)));
-      //  }
-        // Serial.print(R2);
-        // Serial.print(",");
-        // Serial.print(current_sensor);
-        // Serial.println();
+        // Improved voltage divider calculation
+        R2 = R1 * (Vin - Vout) / Vout - RMux;
         
-        //delay(5);
-        if (calibrate < 10) {
-
-          listArray[current_sensor] += (R2);
-          //  Serial.println(R2);
-          //  Serial.println(listArray[current_sensor]);
-        } else if (calibrate == 10) {
-          listArray[current_sensor] /= 10;
-          // Serial.println(listArray[current_sensor]);
-        } else {
-          
-          Serial.print(R2);
-          Serial.print(",");
-          Serial.print(current_sensor);
-          Serial.print(",");
-          Serial.print(timestamp);
-          Serial.println();
-          //delay(10);
-          //bigDrop(current_sensor, abs(R2));
-        }
-
-        
-        // else if (bigDrop(current_sensor, abs(R2))) {
-          
-        //   //pressed[current_sensor] = 1;
-        // } else {
-          
-        //   // listArray[i].remove(0);
-        //   // listArray[i].add((int)abs(R2));
-        
-        // }
-
-        // }
+        // Ensure non-negative resistance
+        if (R2 < 0) R2 = 0;
+          // if (current_sensor == 0) {
+        // Always send resistance change data
+        Serial.print(abs(R2));
+        Serial.print(",");
+        Serial.print(current_sensor);
+        Serial.println();
+          // }
       }
 }
 
@@ -204,21 +227,3 @@ for(int j = 0; j < num_5v; j++){
 }
 }
 
-bool bigDrop(int index, float current) {
-  
-  // Serial.println(abs(avg) * 0.01);
-  if (abs(current) <= abs(listArray[index]) * 0.3) {
-    //Serial.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    Serial.print(current);
-    Serial.print(",");
-    Serial.print(index);
-    Serial.println();
-    return true;
-  }
-
-  Serial.print(abs(listArray[index]));
-  Serial.print(",");
-  Serial.print(index);
-  Serial.println();
-  return false;
-}

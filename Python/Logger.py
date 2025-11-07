@@ -3,10 +3,10 @@ import time
 import csv
 
 
-arduinoData = serial.Serial('com9', 115200)
+arduinoData = serial.Serial('com11', 115200)
 
 # Log file name
-log_file = "sensor_readings4.csv"
+log_file = "sensor_readings8.csv"
 
 start_index = 0
 # Open the log file in append mode
@@ -29,7 +29,7 @@ with open(log_file, mode="a", newline="") as file:
 
             # Parse the sensor ID and resistance
             parts = line.split(",")
-            if len(parts) != 3:
+            if len(parts) != 2:
                 print(f"Malformed data: {line}")
                 continue
 

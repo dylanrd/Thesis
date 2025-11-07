@@ -46,6 +46,15 @@ def calculate_equivalent_conductance(g, i, j):
         float: The equivalent conductance G_ji.
     """
     N, M = g.shape
+    
+    # Input validation
+    if i < 1 or i > N or j < 0 or j >= M:
+        raise ValueError(f"Invalid indices: i={i}, j={j}. Must have 1 <= i <= {N}, 0 <= j < {M}")
+    
+    # Check for all-zero conductances (would make matrix singular)
+    if np.all(g == 0):
+        return 0.0
+    
     C = create_conductance_matrix(g)
     Iref = 1.0  # Reference current
 
@@ -55,8 +64,12 @@ def calculate_equivalent_conductance(g, i, j):
         I[i - 2] = -Iref  # Row current injection
     I[N - 1 + j] = Iref  # Column current extraction
 
-    # Solve the linear system CV = I
-    V = scipy.linalg.solve(C, I)
+    try:
+        # Solve the linear system CV = I
+        V = scipy.linalg.solve(C, I)
+    except scipy.linalg.LinAlgError:
+        # Handle singular matrix case
+        return 0.0
 
     # Calculate the voltage difference
     if i > 1:
@@ -66,12 +79,20 @@ def calculate_equivalent_conductance(g, i, j):
 
     V_j = V[N - 1 + j]  # Voltage at column j
 
-    # Calculate the equivalent conductance
-    G_ji = Iref / (V_j - V_i)
+    # Calculate the equivalent conductance with safety check
+    voltage_diff = V_j - V_i
+    if abs(voltage_diff) < 1e-12:  # Avoid division by very small numbers
+        return 0.0
+    
+    G_ji = Iref / voltage_diff
+    
+    # Ensure reasonable bounds
+    G_ji = np.clip(G_ji, 0, 1e6)  # Cap at 1 MS for numerical stability
+    
     return G_ji
 
 
-def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations=150, tolerance=1e-6, relaxation_factor=0.5):
+def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations=300, tolerance=1e-6, relaxation_factor=0.5):
     """
     Estimates the cell conductances g_ji from the equivalent conductances G_ji
     using a fixed-point iteration method.
@@ -80,43 +101,81 @@ def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations
         G (numpy.ndarray): A 2D numpy array representing the measured equivalent conductances (G_ji).
         initial_guess (numpy.ndarray, optional): An initial guess for the cell conductances (g_ji).
                                                   If None, a default initial guess is used. Defaults to None.
-        max_iterations (int, optional): The maximum number of iterations. Defaults to 100.
+        max_iterations (int, optional): The maximum number of iterations. Defaults to 300.
         tolerance (float, optional): The convergence tolerance. Defaults to 1e-6.
         relaxation_factor (float, optional): The relaxation factor to improve convergence. Defaults to 0.5.
 
     Returns:
         numpy.ndarray: The estimated cell conductances (g_ji).
     """
-    N, M = G.shape  #N rows and M columns
+    # Input validation
+    if not isinstance(G, np.ndarray) or G.ndim != 2:
+        raise ValueError("G must be a 2D numpy array")
+    
+    if np.any(G < 0):
+        print("⚠️ Warning: Negative conductances detected in input data")
+        G = np.clip(G, 0, None)  # Clip negative values to zero
+    
+    N, M = G.shape  # N rows and M columns
 
-    # Initialize cell conductances
+    # Initialize cell conductances with better strategy
     if initial_guess is None:
-        g_est = np.ones((N, M))  # Start with all conductances equal to 1
+        # Use a more intelligent initial guess based on the input data
+        mean_G = np.mean(G[G > 0]) if np.any(G > 0) else 1e-6
+        g_est = np.full((N, M), mean_G * 0.1)  # Start with 10% of mean conductance
     else:
-        g_est = initial_guess.copy() #use the copy to avoid modifying the input data
+        g_est = initial_guess.copy()  # Use the copy to avoid modifying the input data
+        g_est = np.clip(g_est, 1e-12, None)  # Ensure positive values
 
+    # Track convergence history
+    convergence_history = []
+    
     for iteration in range(max_iterations):
         g_est_prev = g_est.copy()
+        total_error = 0.0
 
         # Iterate over all cells
         for i in range(N):
             for j in range(M):
+                if G[i, j] <= 0:  # Skip cells with zero or negative measured conductance
+                    continue
+                    
                 # Calculate equivalent conductance using current estimate
                 G_est_ji = calculate_equivalent_conductance(g_est, i + 1, j)
+                
+                if G_est_ji <= 0:  # Skip if calculation failed
+                    continue
 
+                # Calculate error and update
+                error = G[i, j] - G_est_ji
+                total_error += abs(error)
+                
                 # Update cell conductance using fixed-point iteration with relaxation
-                g_est[i, j] = g_est_prev[i, j] + relaxation_factor * (G[i, j] - G_est_ji)
+                g_est[i, j] = g_est_prev[i, j] + relaxation_factor * error
 
-                # Ensure non-negative conductance
-                g_est[i, j] = max(0.0, g_est[i, j])
+                # Ensure non-negative conductance with minimum threshold
+                g_est[i, j] = max(1e-12, g_est[i, j])
 
-        # Check for convergence
+        # Check for convergence using relative change
         change = np.sum(np.abs(g_est - g_est_prev))
-        if change < tolerance:
-            print(f"Fixed-point iteration converged after {iteration + 1} iterations")
+        relative_change = change / (np.sum(g_est_prev) + 1e-12)
+        convergence_history.append(relative_change)
+        
+        if relative_change < tolerance:
+            print(f"✅ Fixed-point iteration converged after {iteration + 1} iterations")
+            print(f"   Final relative change: {relative_change:.2e}")
             return g_est
 
-    print("Fixed-point iteration did not converge within the maximum number of iterations")
+        # Adaptive relaxation factor for better convergence
+        if iteration > 10 and len(convergence_history) > 5:
+            recent_changes = convergence_history[-5:]
+            if all(recent_changes[i] >= recent_changes[i+1] for i in range(len(recent_changes)-1)):
+                relaxation_factor = min(relaxation_factor * 1.1, 0.9)  # Increase relaxation
+            else:
+                relaxation_factor = max(relaxation_factor * 0.9, 0.1)  # Decrease relaxation
+
+    print(f"⚠️ Fixed-point iteration did not converge within {max_iterations} iterations")
+    print(f"   Final relative change: {convergence_history[-1]:.2e}")
     return g_est
 
 

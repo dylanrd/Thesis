@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import serial
 from Filters import *
-from crosstalk import fixed_point_recover_conductances, compute_equivalent_conductance
+# from crosstalk import fixed_point_recover_conductances, compute_equivalent_conductance
 # # To generate some test data
 # x = np.random.randn(500)
 # y = np.random.randn(500)
 
-fiveV_lines = 15
-read_lines = 16
+fiveV_lines = 48
+read_lines = 32
 
 tempF = []
 pressure = []
-arduinoData = serial.Serial('com9', 115200)  # Creating our serial object named arduinoData
+arduinoData = serial.Serial('com11', 115200)  # Creating our serial object named arduinoData
 
 # Sample data
 x = np.arange(read_lines)  # X positions
