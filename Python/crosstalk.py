@@ -118,6 +118,9 @@ def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations
     
     N, M = G.shape  # N rows and M columns
 
+    # Track which cells were originally zero/non-pressed - these should be set back to 0 after iteration
+    originally_zero = G <= 0
+
     # Initialize cell conductances with better strategy
     if initial_guess is None:
         # Use a more intelligent initial guess based on the input data
@@ -164,6 +167,8 @@ def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations
         if relative_change < tolerance:
             print(f"✅ Fixed-point iteration converged after {iteration + 1} iterations")
             print(f"   Final relative change: {relative_change:.2e}")
+            # Set originally non-pressed cells back to 0 after iteration
+            g_est[originally_zero] = 0.0
             return g_est
 
         # Adaptive relaxation factor for better convergence
@@ -176,6 +181,8 @@ def estimate_cell_conductances_fixed_point(G, initial_guess=None, max_iterations
 
     print(f"⚠️ Fixed-point iteration did not converge within {max_iterations} iterations")
     print(f"   Final relative change: {convergence_history[-1]:.2e}")
+    # Set originally non-pressed cells back to 0 after iteration
+    g_est[originally_zero] = 0.0
     return g_est
 
 
