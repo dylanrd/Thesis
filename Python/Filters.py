@@ -3,6 +3,7 @@ from scipy.ndimage import median_filter
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import maximum_filter
+from scipy.ndimage import label
 from sklearn.cluster import DBSCAN
 def moving_average_filter(matrix, window_size=3):
     filtered_matrix = []
@@ -156,3 +157,57 @@ def multi_peak_detection_with_enhancements(sensor_matrix, neighborhood_factor=0.
     #     return clustered_peaks
 
     return thresholded_matrix  # If no clusters are found, return peaks
+
+def island_based_normalization(sensor_matrix, min_island_size=5, connectivity=1):
+    """
+    Identify islands (connected components) of pressed sensors and normalize each island
+    independently using its own maximum value. This makes each island (e.g., each foot)
+    appear with equal prominence regardless of absolute pressure values.
+    
+    Parameters:
+        sensor_matrix (numpy array): Input matrix of sensor readings.
+        min_island_size (int): Minimum number of pixels in an island to be considered valid.
+        connectivity (int): Connectivity for labeling (1 for 4-connected, 2 for 8-connected).
+    
+    Returns:
+        numpy array: Matrix with each island normalized to its own maximum.
+    """
+    # Create binary mask of pressed sensors (non-zero values)
+    binary_mask = sensor_matrix > 0
+    
+    if not np.any(binary_mask):
+        return sensor_matrix
+    
+    # Find connected components (islands)
+    labeled_array, num_features = label(binary_mask, structure=np.ones((3, 3)) if connectivity == 2 else None)
+    
+    if num_features == 0:
+        return sensor_matrix
+    
+    # Create output matrix
+    normalized_matrix = np.zeros_like(sensor_matrix)
+    
+    # Process each island independently
+    for island_id in range(1, num_features + 1):
+        # Get mask for this island
+        island_mask = labeled_array == island_id
+        island_pixels = np.sum(island_mask)
+        
+        # Skip islands that are too small
+        if island_pixels < min_island_size:
+            continue
+        
+        # Get all values in this island
+        island_values = sensor_matrix[island_mask]
+        
+        # Find maximum value in this island
+        island_max = np.max(island_values)
+        
+        if island_max > 0:
+            # Normalize this island to its own maximum (scale to [0, 1])
+            normalized_island = sensor_matrix[island_mask] / island_max
+            
+            # Store normalized values back
+            normalized_matrix[island_mask] = normalized_island
+    
+    return normalized_matrix
